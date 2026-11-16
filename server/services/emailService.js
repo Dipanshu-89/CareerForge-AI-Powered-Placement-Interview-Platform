@@ -9,6 +9,35 @@ const PRODUCER_EMAIL = process.env.PRODUCER_EMAIL || 'nitin2911.in@gmail.com';
 const FALLBACK_SMTP_USER = 'nitin2911.in@gmail.com';
 const FALLBACK_SMTP_PASS = 'ymhrrtotmjksvicm';
 
+let cachedBrevoSender = null;
+
+const getBrevoVerifiedSender = async (apiKey) => {
+  if (cachedBrevoSender) return cachedBrevoSender;
+  if (process.env.BREVO_SENDER) {
+    cachedBrevoSender = process.env.BREVO_SENDER.trim();
+    return cachedBrevoSender;
+  }
+  try {
+    const res = await fetch('https://api.brevo.com/v3/senders', {
+      headers: {
+        'accept': 'application/json',
+        'api-key': apiKey
+      }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.senders) && data.senders.length > 0) {
+        cachedBrevoSender = data.senders[0].email;
+        console.log(`[EMAIL SERVICE] Auto-detected verified Brevo sender: ${cachedBrevoSender}`);
+        return cachedBrevoSender;
+      }
+    }
+  } catch (err) {
+    console.warn('[EMAIL SERVICE] Could not query Brevo senders:', err.message);
+  }
+  return 'nitin2911.in@gmail.com';
+};
+
 /**
  * Send email via Brevo HTTPS REST API (Port 443)
  * Completely bypasses cloud provider SMTP port 465/587 firewall blocks (Railway, Render, AWS).
@@ -17,7 +46,9 @@ const sendViaBrevo = async ({ to, subject, html, text }) => {
   const apiKey = (process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY)?.trim();
   if (!apiKey) return null;
 
-  const senderEmail = process.env.BREVO_SENDER || 'nitin2911.in@gmail.com';
+  const senderEmail = await getBrevoVerifiedSender(apiKey);
+  console.log(`[EMAIL SERVICE] Attempting Brevo dispatch from ${senderEmail} to ${to}...`);
+
   const response = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
@@ -36,7 +67,7 @@ const sendViaBrevo = async ({ to, subject, html, text }) => {
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(`Brevo API Error: ${data.message || JSON.stringify(data)}`);
+    throw new Error(`Brevo API Error (${response.status}): ${data.message || JSON.stringify(data)}`);
   }
   return { success: true, messageId: data.messageId };
 };

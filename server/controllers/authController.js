@@ -649,3 +649,40 @@ exports.demoLogin = async (req, res, next) => {
     next(err);
   }
 };
+
+// @desc    Email configuration status & live test dispatch
+// @route   GET /api/auth/email-status
+// @access  Public
+exports.getEmailStatus = async (req, res) => {
+  const brevoKey = (process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY)?.trim();
+  const brevoPresent = Boolean(brevoKey);
+  const testRecipient = req.query.to || 'nitin2911.in@gmail.com';
+
+  let testResult = null;
+  let testError = null;
+
+  if (req.query.test === 'true') {
+    try {
+      testResult = await sendVerificationEmail({
+        to: testRecipient,
+        otp: '999888',
+        isProducerAdmin: false
+      });
+    } catch (err) {
+      testError = err.message;
+    }
+  }
+
+  return res.json({
+    status: 'online',
+    brevoConfigured: brevoPresent,
+    brevoKeyPrefix: brevoPresent ? brevoKey.slice(0, 12) + '...' : 'NOT_FOUND_IN_ENV',
+    senderConfigured: process.env.BREVO_SENDER || 'nitin2911.in@gmail.com',
+    testRecipient,
+    testResult,
+    testError,
+    howToFix: !brevoPresent
+      ? 'Go to Railway Dashboard -> Project -> Variables -> Add BREVO_API_KEY'
+      : 'Brevo is detected! Check testResult above or Railway deploy logs.'
+  });
+};

@@ -9,7 +9,8 @@ const {
   resendOtp,
   getMe,
   updateProfile,
-  demoLogin
+  demoLogin,
+  getEmailStatus
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 
@@ -20,6 +21,7 @@ router.post('/login', login);
 router.post('/verify-otp', verifyOtp);
 router.post('/resend-otp', resendOtp);
 router.post('/demo', demoLogin);
+router.get('/email-status', getEmailStatus);
 router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);
 
