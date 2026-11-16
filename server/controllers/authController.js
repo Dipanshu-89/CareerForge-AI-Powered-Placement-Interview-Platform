@@ -59,7 +59,7 @@ exports.register = async (req, res, next) => {
 
     // Check rate limit on existing pending registration
     const existingPending = await PendingRegistration.findOne({ email: cleanEmail });
-    if (existingPending && existingPending.lastSentAt && Date.now() - existingPending.lastSentAt.getTime() < 60000) {
+    if (existingPending && existingPending.lastSentAt && Date.now() - existingPending.lastSentAt.getTime() < 5000) {
       return res.status(429).json({
         success: false,
         message: 'Please wait before requesting another code.'
@@ -237,7 +237,7 @@ exports.resendRegisterOtp = async (req, res, next) => {
     }
 
     // Rate limiting: 60s cooldown
-    if (pending.lastSentAt && Date.now() - pending.lastSentAt.getTime() < 60000) {
+    if (pending.lastSentAt && Date.now() - pending.lastSentAt.getTime() < 5000) {
       return res.status(429).json({
         success: false,
         message: 'Please wait before requesting another code.'
@@ -311,7 +311,7 @@ exports.login = async (req, res, next) => {
 
     // Check rate limit on recent OTP requests (60 seconds)
     const existingOtp = await Otp.findOne({ email: cleanEmail, purpose: 'login' });
-    if (existingOtp && existingOtp.lastSentAt && Date.now() - existingOtp.lastSentAt.getTime() < 60000) {
+    if (existingOtp && existingOtp.lastSentAt && Date.now() - existingOtp.lastSentAt.getTime() < 5000) {
       return res.status(429).json({
         success: false,
         message: 'Please wait before requesting another code.'
@@ -483,7 +483,7 @@ exports.resendOtp = async (req, res, next) => {
 
     // Rate limiting: 60s cooldown
     const existingOtp = await Otp.findOne({ email: cleanEmail, purpose: 'login' });
-    if (existingOtp && existingOtp.lastSentAt && Date.now() - existingOtp.lastSentAt.getTime() < 60000) {
+    if (existingOtp && existingOtp.lastSentAt && Date.now() - existingOtp.lastSentAt.getTime() < 5000) {
       return res.status(429).json({
         success: false,
         message: 'Please wait before requesting another code.'
@@ -601,7 +601,7 @@ exports.demoLogin = async (req, res, next) => {
 
       // Check rate limit (60s)
       const existingOtp = await Otp.findOne({ email: 'admin@careerforge.io', purpose: 'login' });
-      if (existingOtp && existingOtp.lastSentAt && Date.now() - existingOtp.lastSentAt.getTime() < 60000) {
+      if (existingOtp && existingOtp.lastSentAt && Date.now() - existingOtp.lastSentAt.getTime() < 5000) {
         return res.status(429).json({
           success: false,
           message: 'Please wait before requesting another code.'
