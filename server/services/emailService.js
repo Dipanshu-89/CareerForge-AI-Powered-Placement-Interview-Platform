@@ -9,6 +9,68 @@ const PRODUCER_EMAIL = process.env.PRODUCER_EMAIL || 'nitin2911.in@gmail.com';
 const FALLBACK_SMTP_USER = 'nitin2911.in@gmail.com';
 const FALLBACK_SMTP_PASS = 'ymhrrtotmjksvicm';
 
+/**
+ * Send email via Brevo HTTPS REST API (Port 443)
+ * Completely bypasses cloud provider SMTP port 465/587 firewall blocks (Railway, Render, AWS).
+ */
+const sendViaBrevo = async ({ to, subject, html, text }) => {
+  const apiKey = (process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY)?.trim();
+  if (!apiKey) return null;
+
+  const senderEmail = process.env.BREVO_SENDER || 'nitin2911.in@gmail.com';
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': apiKey,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      sender: { name: 'CareerForge Security', email: senderEmail },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+      textContent: text
+    })
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(`Brevo API Error: ${data.message || JSON.stringify(data)}`);
+  }
+  return { success: true, messageId: data.messageId };
+};
+
+/**
+ * Send email via Resend HTTPS REST API (Port 443)
+ */
+const sendViaResend = async ({ to, subject, html, text }) => {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  if (!apiKey) return null;
+
+  const fromAddress = process.env.RESEND_FROM || 'CareerForge Security <onboarding@resend.dev>';
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      from: fromAddress,
+      to: [to],
+      subject,
+      html,
+      text
+    })
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(`Resend API Error: ${data.message || JSON.stringify(data)}`);
+  }
+  return { success: true, messageId: data.id };
+};
+
 const getSmtpCredentials = () => {
   const user = (process.env.SMTP_USER || FALLBACK_SMTP_USER).trim();
   const pass = (process.env.SMTP_PASSWORD || process.env.SMTP_PASS || FALLBACK_SMTP_PASS).trim();
@@ -124,8 +186,6 @@ const maskEmail = (email) => {
 const sendVerificationEmail = async ({ to, otp, isProducerAdmin = false }) => {
   const recipient = isProducerAdmin ? PRODUCER_EMAIL : to;
   const { user } = getSmtpCredentials();
-  let mailer = await getTransporter();
-  let isDevFallback = !isRealSmtpConfigured();
 
   // Crucial: Gmail SMTP strictly requires From address to match authenticated user
   const from = process.env.SMTP_FROM || `"CareerForge Security" <${user}>`;
@@ -172,6 +232,32 @@ CareerForge Security Team`;
     </div>
   </div>
   `;
+
+  // 1. Try Brevo HTTPS API first (Bypasses Railway/Render SMTP firewall completely)
+  try {
+    const brevoRes = await sendViaBrevo({ to: recipient, subject, html, text });
+    if (brevoRes) {
+      console.log(`[EMAIL SERVICE] Real email delivered via Brevo HTTPS API to ${recipient} (Message ID: ${brevoRes.messageId})`);
+      return { success: true, messageId: brevoRes.messageId, recipient };
+    }
+  } catch (brevoErr) {
+    console.error(`[EMAIL SERVICE Brevo Error to ${recipient}]:`, brevoErr.message);
+  }
+
+  // 2. Try Resend HTTPS API (Bypasses Railway/Render SMTP firewall completely)
+  try {
+    const resendRes = await sendViaResend({ to: recipient, subject, html, text });
+    if (resendRes) {
+      console.log(`[EMAIL SERVICE] Real email delivered via Resend HTTPS API to ${recipient} (Message ID: ${resendRes.messageId})`);
+      return { success: true, messageId: resendRes.messageId, recipient };
+    }
+  } catch (resendErr) {
+    console.error(`[EMAIL SERVICE Resend Error to ${recipient}]:`, resendErr.message);
+  }
+
+  // 3. Fallback to Nodemailer SMTP
+  let mailer = await getTransporter();
+  let isDevFallback = !isRealSmtpConfigured();
 
   let info;
   try {
