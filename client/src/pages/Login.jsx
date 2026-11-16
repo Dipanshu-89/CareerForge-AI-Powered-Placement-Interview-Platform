@@ -426,17 +426,7 @@ const Login = () => {
                 />
               </div>
 
-              {/* Instant Master Code Helper */}
-              <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300">
-                <span>⚡ Instant Backup Code:</span>
-                <button
-                  type="button"
-                  onClick={() => setOtp('123456')}
-                  className="font-mono font-bold text-amber-400 hover:text-white underline underline-offset-2 transition-colors cursor-pointer"
-                >
-                  123456 (Click to Fill)
-                </button>
-              </div>
+
 
               <button
                 type="submit"
