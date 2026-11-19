@@ -119,3 +119,27 @@ career/
    - Switch role to Recruiter -> View active listings -> Click **Review Candidates** -> Inspect applicant ATS resume and AI interview score -> Advance stage to **Shortlisted** or **Interviewing**.
 4. **Admin Flow**:
    - Switch role to Admin -> Inspect platform analytics, active jobs, and user directory table.
+
+## 👥 5-Member Team Ownership Map
+
+| **Member** | **Name** | **Feature Domain** | **Focus Areas** |
+| ---------- | -------- | ----------------- | --------------- |
+| **Member 1 (Team Lead)** | **Shiva Shankar Somavarapu** | **Student Profile & ATS Resume** | Student profile management, resume builder, resume upload, ATS keyword scoring, improvement suggestions |
+| **Member 2** | **Aayush** | **Jobs & Application Portal** | Job CRUD, job search and filtering, 1-click applications, application pipeline, status tracking |
+| **Member 3** | **Gopal Verma** | **Gemini AI Interview Engine** | Gemini API integration, role-specific question generation, answer evaluation, scoring rubric, interview scorecard |
+| **Member 4** | **Dipanshu** | **Socket.io Live Interview Room** | Real-time interview sessions, question-answer communication, voice integration (STT/TTS), code scratchpad, live session events |
+| **Member 5** | **Nitin Kumar** | **Recruiter, Admin & Analytics** | Recruiter dashboard, job management, applicant review, candidate selection, admin console, user management, platform analytics |
+
+### 🏗️ Team Lead & Shared Responsibilities
+
+The Team Lead coordinates the overall development and integration of CareerForge.
+
+- Project architecture and technical planning.
+- JWT authentication and role-based access control (RBAC).
+- MongoDB database structure and model integration.
+- Shared API integration and frontend-backend coordination.
+- GitHub collaboration, code reviews, and integration.
+- Final testing, debugging, and project deployment.
+
+**Note:** All five members are responsible for developing, integrating, and testing their respective modules with the main project.
+
