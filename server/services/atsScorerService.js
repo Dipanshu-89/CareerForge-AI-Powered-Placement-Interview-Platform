@@ -96,25 +96,27 @@ function calculateATSScore(resumeData) {
 }
 
 /**
- * ATS Scorer for raw plain-text resume content (from uploaded PDF/DOCX)
- * Analyses keyword density, section presence, quantifiable metrics, and contact info
+ * ATS Scorer for raw plain-text resume content (from uploaded PDF/DOCX/TXT)
+ * Uses simple string matching — no regex on user-controlled keyword strings.
  */
 function calculateATSScoreFromText(text) {
   let score = 0;
   const feedback = [];
-  const t = (text || '').toLowerCase();
+  const lowerText = (text || '').toLowerCase();
 
   // 1. Contact Info (Max 20 pts)
   let contactScore = 0;
-  if (/@[\w.]+\.\w{2,}/.test(t)) contactScore += 5;          // email
-  if (/(\+?\d[\d\s\-().]{7,}\d)/.test(t)) contactScore += 5; // phone
-  if (/linkedin/.test(t)) contactScore += 5;                  // LinkedIn
-  if (/github|portfolio/.test(t)) contactScore += 5;          // GitHub/portfolio
+  if (/@[\w.]+\.\w{2,}/.test(lowerText)) contactScore += 5;           // email
+  if (/(\+?\d[\d\s\-().]{7,}\d)/.test(lowerText)) contactScore += 5;  // phone
+  if (lowerText.includes('linkedin')) contactScore += 5;               // LinkedIn
+  if (lowerText.includes('github') || lowerText.includes('portfolio')) contactScore += 5; // GitHub/portfolio
   score += contactScore;
-  if (contactScore < 15) feedback.push('Ensure your resume includes email, phone, LinkedIn, and GitHub/portfolio links.');
+  if (contactScore < 15) {
+    feedback.push('Ensure your resume includes email, phone, LinkedIn, and GitHub/portfolio links.');
+  }
 
   // 2. Professional Summary / Objective (Max 15 pts)
-  if (/summary|objective|profile|about me/i.test(text)) {
+  if (/summary|objective|profile|about me/i.test(lowerText)) {
     score += 15;
   } else {
     score += 5;
@@ -122,15 +124,15 @@ function calculateATSScoreFromText(text) {
   }
 
   // 3. Education Section (Max 15 pts)
-  if (/education|university|college|bachelor|master|b\.tech|m\.tech|b\.e|m\.e|b\.sc|degree/i.test(text)) {
+  if (/education|university|college|bachelor|master|b\.tech|m\.tech|b\.e\b|m\.e\b|b\.sc|degree/i.test(lowerText)) {
     score += 15;
   } else {
     feedback.push('Add an Education section with degree, institution, and graduation year.');
   }
 
   // 4. Experience / Work History (Max 20 pts)
-  if (/experience|internship|work history|employment|worked at|position/i.test(text)) {
-    const hasMetrics = /\d+%|\$\d+|\d+\s*(users|clients|requests|ms|times|projects)/i.test(text);
+  if (/experience|internship|work history|employment|worked at|position/i.test(lowerText)) {
+    const hasMetrics = /\d+%|\$\d+|\d+\s*(users|clients|requests|ms|times|projects)/i.test(lowerText);
     if (hasMetrics) {
       score += 20;
     } else {
@@ -143,7 +145,7 @@ function calculateATSScoreFromText(text) {
   }
 
   // 5. Projects (Max 15 pts)
-  if (/projects?|github\.com|live demo|deployed/i.test(text)) {
+  if (/projects?|github\.com|live demo|deployed/i.test(lowerText)) {
     score += 15;
   } else {
     score += 5;
@@ -151,12 +153,15 @@ function calculateATSScoreFromText(text) {
   }
 
   // 6. Skills Section (Max 15 pts)
+  // Use plain .includes() — avoids regex special-character errors (e.g. c++)
   const techKeywords = [
-    'javascript','python','java','c\+\+','typescript','react','node','express','mongodb',
-    'postgresql','sql','docker','kubernetes','aws','git','html','css','rest','api',
-    'machine learning','tensorflow','flask','django','spring','kotlin','swift'
+    'javascript', 'python', 'java', 'c++', 'typescript', 'react', 'node', 'express', 'mongodb',
+    'postgresql', 'mysql', 'sql', 'docker', 'kubernetes', 'aws', 'git', 'html', 'css', 'rest',
+    'api', 'machine learning', 'tensorflow', 'flask', 'django', 'spring', 'kotlin', 'swift',
+    'angular', 'vue', 'next', 'redux', 'graphql', 'firebase', 'linux', 'bash'
   ];
-  const matchedSkills = techKeywords.filter(kw => new RegExp(kw, 'i').test(text));
+  const matchedSkills = techKeywords.filter(kw => lowerText.includes(kw));
+
   if (matchedSkills.length >= 8) {
     score += 15;
   } else if (matchedSkills.length >= 4) {
