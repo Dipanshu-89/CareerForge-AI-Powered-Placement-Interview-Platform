@@ -8,7 +8,8 @@ const {
   PRODUCER_EMAIL,
   isEmailConfigured,
   maskEmail,
-  sendVerificationEmail
+  sendVerificationEmail,
+  sendPasswordResetEmail
 } = require('../services/emailService');
 
 const generateToken = (id) => {
@@ -642,6 +643,217 @@ exports.demoLogin = async (req, res, next) => {
     return res.status(400).json({
       success: false,
       message: 'Students and Recruiters must sign in with their email, password, and OTP verification for account privacy.'
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Initiate Password Reset & Dispatch Verification Code
+// @route   POST /api/auth/forgot-password
+// @access  Public
+exports.forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide your registered email address'
+      });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: cleanEmail });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'No account found with this email address. Please check your spelling or register.'
+      });
+    }
+
+    const otp = generateSecureOtp();
+    const hashedOtp = await bcrypt.hash(otp, 10);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+    // Invalidate previous reset OTPs for this email
+    await Otp.deleteMany({ email: cleanEmail, purpose: 'reset_password' });
+    await Otp.create({
+      email: cleanEmail,
+      hashedOtp,
+      purpose: 'reset_password',
+      attempts: 0,
+      maxAttempts: 5,
+      expiresAt,
+      lastSentAt: new Date()
+    });
+
+    // Asynchronous email dispatch
+    sendPasswordResetEmail({
+      to: cleanEmail,
+      otp
+    }).catch(err => console.error('[PASSWORD RESET EMAIL ERROR]:', err.message));
+
+    const targetEmailMasked = maskEmail(cleanEmail);
+
+    res.json({
+      success: true,
+      email: cleanEmail,
+      targetEmailMasked,
+      message: `A 6-digit verification code has been dispatched to ${targetEmailMasked}.`
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Verify Password Reset OTP & Obtain Reset Authorization Token
+// @route   POST /api/auth/verify-reset-otp
+// @access  Public
+exports.verifyResetOtp = async (req, res, next) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email and the 6-digit verification code'
+      });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: cleanEmail });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User account not found'
+      });
+    }
+
+    const storedOtp = await Otp.findOne({ email: cleanEmail, purpose: 'reset_password' });
+    if (!storedOtp) {
+      return res.status(400).json({
+        success: false,
+        message: 'No active password reset code found. Please request a new code.'
+      });
+    }
+
+    // Check expiration (5 minutes)
+    if (new Date() > storedOtp.expiresAt) {
+      await Otp.deleteMany({ email: cleanEmail, purpose: 'reset_password' });
+      return res.status(400).json({
+        success: false,
+        message: 'This verification code has expired. Please request a new code.'
+      });
+    }
+
+    // Check attempts limit
+    if (storedOtp.attempts >= (storedOtp.maxAttempts || 5)) {
+      await Otp.deleteMany({ email: cleanEmail, purpose: 'reset_password' });
+      return res.status(400).json({
+        success: false,
+        message: 'Too many failed attempts. This verification code has been invalidated. Please request a new code.'
+      });
+    }
+
+    // Compare entered OTP with hashed OTP
+    const isMatch = await bcrypt.compare(otp.trim(), storedOtp.hashedOtp);
+    if (!isMatch) {
+      storedOtp.attempts = (storedOtp.attempts || 0) + 1;
+      if (storedOtp.attempts >= (storedOtp.maxAttempts || 5)) {
+        await Otp.deleteMany({ email: cleanEmail, purpose: 'reset_password' });
+        return res.status(400).json({
+          success: false,
+          message: 'Too many failed attempts. This verification code has been invalidated. Please request a new code.'
+        });
+      }
+      await storedOtp.save();
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid verification code. Please check and try again.'
+      });
+    }
+
+    // Invalidate the OTP after successful verification
+    await Otp.deleteMany({ email: cleanEmail, purpose: 'reset_password' });
+
+    // Generate signed reset authorization token valid for 15 minutes
+    const resetToken = jwt.sign(
+      { id: user._id, email: user.email, purpose: 'reset_password' },
+      process.env.JWT_SECRET || 'careerforge_super_secret_jwt_token_2026_xyz!',
+      { expiresIn: '15m' }
+    );
+
+    res.json({
+      success: true,
+      resetToken,
+      message: 'Code verified successfully. You may now create your new password.'
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Submit New Password using Reset Token
+// @route   POST /api/auth/reset-password
+// @access  Public
+exports.resetPassword = async (req, res, next) => {
+  try {
+    const { resetToken, newPassword } = req.body;
+
+    if (!resetToken || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide the reset authorization token and new password'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long'
+      });
+    }
+
+    // Decode and verify reset token
+    let decoded;
+    try {
+      decoded = jwt.verify(
+        resetToken,
+        process.env.JWT_SECRET || 'careerforge_super_secret_jwt_token_2026_xyz!'
+      );
+    } catch (jwtErr) {
+      return res.status(401).json({
+        success: false,
+        message: 'Password reset session has expired or is invalid. Please start again.'
+      });
+    }
+
+    if (decoded.purpose !== 'reset_password') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid authorization token'
+      });
+    }
+
+    const user = await User.findById(decoded.id).select('+password');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User account not found'
+      });
+    }
+
+    // Hash and update password
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Password has been reset successfully! You can now sign in with your new password.'
     });
   } catch (err) {
     next(err);

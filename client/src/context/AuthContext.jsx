@@ -96,6 +96,24 @@ export const AuthProvider = ({ children }) => {
     return res.data.user;
   };
 
+  // Forgot Password: Step 1 - Send reset OTP
+  const forgotPassword = async (email) => {
+    const res = await api.post('/auth/forgot-password', { email });
+    return res.data;
+  };
+
+  // Forgot Password: Step 2 - Verify OTP & obtain resetToken
+  const verifyResetOtp = async (email, otp) => {
+    const res = await api.post('/auth/verify-reset-otp', { email, otp });
+    return res.data;
+  };
+
+  // Forgot Password: Step 3 - Submit new password with resetToken
+  const resetPassword = async (resetToken, newPassword) => {
+    const res = await api.post('/auth/reset-password', { resetToken, newPassword });
+    return res.data;
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -105,6 +123,9 @@ export const AuthProvider = ({ children }) => {
         initiateLogin,
         verifyOtp,
         resendOtp,
+        forgotPassword,
+        verifyResetOtp,
+        resetPassword,
         initiateRegister,
         verifyRegisterOtp,
         resendRegisterOtp,

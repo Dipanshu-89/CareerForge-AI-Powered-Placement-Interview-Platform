@@ -12,11 +12,21 @@ import {
   Briefcase,
   Zap,
   KeyRound,
-  RotateCcw
+  RotateCcw,
+  CheckCircle2,
+  ChevronLeft
 } from 'lucide-react';
 
 const Login = () => {
-  const { initiateLogin, verifyOtp, resendOtp, demoLogin } = useAuth();
+  const {
+    initiateLogin,
+    verifyOtp,
+    resendOtp,
+    demoLogin,
+    forgotPassword,
+    verifyResetOtp,
+    resetPassword
+  } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -29,10 +39,12 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // 2FA OTP state
-  const [step, setStep] = useState('credentials'); // 'credentials' | 'otp'
+  // 2FA OTP state & Forgot Password steps
+  // step: 'credentials' | 'otp' | 'forgot-email' | 'forgot-otp' | 'forgot-new-password'
+  const [step, setStep] = useState('credentials');
   const [otp, setOtp] = useState('');
   const [otpInfo, setOtpInfo] = useState({
     email: '',
@@ -41,6 +53,14 @@ const Login = () => {
     message: ''
   });
   const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Forgot password specific states
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetOtp, setResetOtp] = useState('');
+  const [resetToken, setResetToken] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [forgotMaskedEmail, setForgotMaskedEmail] = useState('');
 
   useEffect(() => {
     if (queryRole === 'recruiter') {
@@ -164,6 +184,101 @@ const Login = () => {
     }
   };
 
+  // Forgot Password Handlers
+  const handleOpenForgotPassword = () => {
+    setError('');
+    setSuccessMessage('');
+    setResetEmail(email);
+    setResetOtp('');
+    setResetToken('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setStep('forgot-email');
+  };
+
+  const handleSendResetOtp = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMessage('');
+    setLoading(true);
+
+    try {
+      const res = await forgotPassword(resetEmail.trim());
+      setForgotMaskedEmail(res.targetEmailMasked || resetEmail);
+      setStep('forgot-otp');
+      setResendCooldown(60);
+      setSuccessMessage(res.message || 'Verification code sent to your email.');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to send password reset code. Please check your email address.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendResetOtp = async () => {
+    if (resendCooldown > 0) return;
+    setError('');
+    setLoading(true);
+    try {
+      const res = await forgotPassword(resetEmail.trim());
+      setForgotMaskedEmail(res.targetEmailMasked || resetEmail);
+      setResendCooldown(60);
+      setSuccessMessage('A fresh verification code has been dispatched to your email.');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to resend code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyResetOtp = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMessage('');
+    setLoading(true);
+
+    try {
+      const res = await verifyResetOtp(resetEmail.trim(), resetOtp.trim());
+      setResetToken(res.resetToken);
+      setStep('forgot-new-password');
+      setSuccessMessage('Code verified successfully. Please enter your new password.');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Invalid or expired verification code. Please check and try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPasswordSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMessage('');
+
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match. Please ensure both fields are identical.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await resetPassword(resetToken, newPassword);
+      setEmail(resetEmail);
+      setPassword('');
+      setStep('credentials');
+      setSuccessMessage(res.message || 'Your password has been reset successfully! Please sign in with your new password.');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to reset password. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-[85vh] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
@@ -173,16 +288,36 @@ const Login = () => {
           <div className="inline-flex w-12 h-12 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-600 items-center justify-center shadow-lg shadow-brand-500/20 mb-3">
             {step === 'otp' ? (
               <Shield className="w-6 h-6 text-white animate-pulse" />
+            ) : step === 'forgot-email' ? (
+              <KeyRound className="w-6 h-6 text-white" />
+            ) : step === 'forgot-otp' ? (
+              <Shield className="w-6 h-6 text-white animate-pulse" />
+            ) : step === 'forgot-new-password' ? (
+              <Lock className="w-6 h-6 text-white" />
             ) : (
               <Sparkles className="w-6 h-6 text-white" />
             )}
           </div>
           <h2 className="text-2xl font-extrabold text-white">
-            {step === 'otp' ? 'Two-Factor Verification' : 'Sign In to CareerForge'}
+            {step === 'otp'
+              ? 'Two-Factor Verification'
+              : step === 'forgot-email'
+              ? 'Reset Your Password'
+              : step === 'forgot-otp'
+              ? 'Enter Verification Code'
+              : step === 'forgot-new-password'
+              ? 'Create New Password'
+              : 'Sign In to CareerForge'}
           </h2>
           <p className="text-sm text-slate-400 mt-1">
             {step === 'otp'
               ? 'Enter the 6-digit security code dispatched to your email'
+              : step === 'forgot-email'
+              ? 'Enter your registered email address to receive a verification code'
+              : step === 'forgot-otp'
+              ? `Enter the 6-digit code sent to ${forgotMaskedEmail || 'your email'}`
+              : step === 'forgot-new-password'
+              ? 'Enter a strong new password with at least 6 characters'
               : 'Select your account type and enter your credentials'}
           </p>
         </div>
@@ -261,6 +396,13 @@ const Login = () => {
                 </div>
               )}
 
+              {successMessage && (
+                <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+                  <span>{successMessage}</span>
+                </div>
+              )}
+
               {/* Dedicated 1-Click Trigger for CareerForge Admin */}
               {selectedRole === 'admin' && (
                 <div className="mb-5 pb-5 border-b border-slate-800">
@@ -310,8 +452,16 @@ const Login = () => {
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="block text-xs font-medium text-slate-300">Password</label>
-                    {selectedRole === 'admin' && (
+                    {selectedRole === 'admin' ? (
                       <span className="text-[11px] text-purple-400">admin pass: password123</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleOpenForgotPassword}
+                        className="text-xs text-brand-400 hover:text-brand-300 hover:underline font-medium transition-colors"
+                      >
+                        Forgot password?
+                      </button>
                     )}
                   </div>
                   <div className="relative">
@@ -471,6 +621,226 @@ const Login = () => {
                 {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend OTP'}
               </button>
             </div>
+          </div>
+        )}
+
+        {/* FORGOT PASSWORD STEP 1: EMAIL INPUT */}
+        {step === 'forgot-email' && (
+          <div className="p-6 sm:p-8 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95">
+            {error && (
+              <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSendResetOtp} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                  Registered Account Email
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                  <input
+                    type="email"
+                    required
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    placeholder={
+                      selectedRole === 'student'
+                        ? 'e.g. student@careerforge.io or your college email'
+                        : selectedRole === 'recruiter'
+                        ? 'e.g. recruiter@company.com'
+                        : 'e.g. user@careerforge.io'
+                    }
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 text-white placeholder-slate-500 text-sm outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 px-4 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm shadow-lg shadow-brand-600/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {loading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    Send Verification Code
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setError('');
+                  setSuccessMessage('');
+                  setStep('credentials');
+                }}
+                className="text-xs text-slate-400 hover:text-white transition-colors inline-flex items-center gap-1 font-medium"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" /> Back to Sign In
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* FORGOT PASSWORD STEP 2: VERIFICATION CODE CONFIRMATION BOX */}
+        {step === 'forgot-otp' && (
+          <div className="p-6 sm:p-8 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95">
+            {error && (
+              <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+            {successMessage && (
+              <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+                <span>{successMessage}</span>
+              </div>
+            )}
+
+            <div className="mb-5 p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 text-xs text-slate-300">
+              <p>
+                Verification code dispatched to: <strong className="text-white font-mono">{forgotMaskedEmail}</strong>
+              </p>
+              <p className="text-[11px] text-slate-500 mt-1">Code expires in 5 minutes.</p>
+            </div>
+
+            <form onSubmit={handleVerifyResetOtp} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-2 text-center">
+                  6-Digit Confirmation Code
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    autoFocus
+                    value={resetOtp}
+                    onChange={(e) => setResetOtp(e.target.value.replace(/\D/g, ''))}
+                    placeholder="••••••"
+                    className="w-full text-center text-2xl font-mono font-bold tracking-[10px] py-3.5 rounded-xl bg-slate-800 border border-slate-700 focus:border-brand-500 focus:ring-2 focus:ring-brand-500 text-white placeholder-slate-600 outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || resetOtp.length < 6}
+                className="w-full py-3 px-4 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm shadow-lg shadow-brand-600/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {loading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    Verify Code
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-5 pt-4 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+              <button
+                type="button"
+                onClick={handleResendResetOtp}
+                disabled={resendCooldown > 0 || loading}
+                className="flex items-center gap-1.5 text-brand-400 hover:text-brand-300 disabled:opacity-50 font-medium transition-colors"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setError('');
+                  setSuccessMessage('');
+                  setStep('forgot-email');
+                }}
+                className="text-slate-400 hover:text-white transition-colors"
+              >
+                Change Email
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* FORGOT PASSWORD STEP 3: CREATE NEW PASSWORD */}
+        {step === 'forgot-new-password' && (
+          <div className="p-6 sm:p-8 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95">
+            {error && (
+              <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+            {successMessage && (
+              <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+                <span>{successMessage}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                  New Password (min. 6 characters)
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 text-white placeholder-slate-500 text-sm outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                  Confirm New Password
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter new password"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 text-white placeholder-slate-500 text-sm outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 px-4 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm shadow-lg shadow-brand-600/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {loading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    Save New Password & Sign In
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </form>
           </div>
         )}
 

@@ -396,12 +396,131 @@ const sendAnalyticsDossierEmail = async ({ requesterEmail, requesterName, stats,
   }
 };
 
+/**
+ * Send Professional Password Reset Code Email
+ */
+const sendPasswordResetEmail = async ({ to, otp }) => {
+  const recipient = to;
+  const { user } = getSmtpCredentials();
+  const from = process.env.SMTP_FROM || `"CareerForge Security" <${user}>`;
+  const subject = 'Your Password Reset Code - CareerForge';
+
+  const text = `Hello,
+
+We received a request to reset your CareerForge account password.
+Your 6-digit verification code is:
+
+${otp}
+
+This code will expire in 5 minutes.
+If you did not request this password reset, please ignore this email.
+
+Regards,
+CareerForge Security Team`;
+
+  const html = `
+  <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 540px; margin: 0 auto; padding: 32px 24px; background: #0b1120; color: #e2e8f0; border-radius: 16px; border: 1px solid #1e293b;">
+    <div style="text-align: center; margin-bottom: 24px;">
+      <h1 style="color: #ffffff; font-size: 22px; font-weight: 700; margin: 0 0 6px 0;">CareerForge Security</h1>
+      <p style="color: #f59e0b; font-size: 13px; font-weight: 600; margin: 0;">Password Reset Verification</p>
+    </div>
+    <div style="background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 24px; margin-bottom: 20px;">
+      <p style="font-size: 15px; color: #f1f5f9; margin: 0 0 12px 0;">Hello,</p>
+      <p style="font-size: 14px; color: #94a3b8; margin: 0 0 20px 0; line-height: 1.5;">
+        We received a request to reset your password. Use the verification code below to verify your identity and create your new password:
+      </p>
+      <div style="text-align: center; margin: 24px 0;">
+        <div style="display: inline-block; background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 14px 32px;">
+          <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #f59e0b;">${otp}</span>
+        </div>
+      </div>
+      <p style="font-size: 13px; color: #94a3b8; margin: 0 0 8px 0; line-height: 1.5;">
+        This code is valid for <strong>5 minutes</strong>.
+      </p>
+      <p style="font-size: 13px; color: #64748b; margin: 0; line-height: 1.5;">
+        If you did not request a password reset, you can safely ignore this email.
+      </p>
+    </div>
+    <div style="text-align: center; font-size: 12px; color: #64748b; line-height: 1.6;">
+      Regards,<br/>
+      <strong>CareerForge Security Team</strong>
+    </div>
+  </div>
+  `;
+
+  // 1. Try Brevo HTTPS API first
+  try {
+    const brevoRes = await sendViaBrevo({ to: recipient, subject, html, text });
+    if (brevoRes) {
+      console.log(`[EMAIL SERVICE] Password reset email delivered via Brevo to ${recipient} (Message ID: ${brevoRes.messageId})`);
+      return { success: true, messageId: brevoRes.messageId, recipient };
+    }
+  } catch (brevoErr) {
+    console.error(`[EMAIL SERVICE Brevo Error to ${recipient}]:`, brevoErr.message);
+  }
+
+  // 2. Try Resend HTTPS API
+  try {
+    const resendRes = await sendViaResend({ to: recipient, subject, html, text });
+    if (resendRes) {
+      console.log(`[EMAIL SERVICE] Password reset email delivered via Resend to ${recipient} (Message ID: ${resendRes.messageId})`);
+      return { success: true, messageId: resendRes.messageId, recipient };
+    }
+  } catch (resendErr) {
+    console.error(`[EMAIL SERVICE Resend Error to ${recipient}]:`, resendErr.message);
+  }
+
+  // 3. Fallback to Nodemailer SMTP
+  let mailer = await getTransporter();
+  let isDevFallback = !isRealSmtpConfigured();
+
+  let info;
+  try {
+    info = await mailer.sendMail({
+      from,
+      to: recipient,
+      subject,
+      text,
+      html
+    });
+  } catch (sendErr) {
+    console.error(`[EMAIL SERVICE RESET ERROR to ${recipient}]:`, sendErr.message);
+    if (!isDevFallback && process.env.NODE_ENV !== 'production') {
+      mailer = await getDevTransporter();
+      isDevFallback = true;
+      info = await mailer.sendMail({
+        from,
+        to: recipient,
+        subject,
+        text,
+        html
+      });
+    } else {
+      throw sendErr;
+    }
+  }
+
+  if (isDevFallback) {
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+    console.log(`=======================================================`);
+    console.log(`📧 [DEV EMAIL] Password reset email sent to ${recipient}!`);
+    console.log(`   Verification Code: [ ${otp} ]`);
+    if (previewUrl) console.log(`   Ethereal Preview: ${previewUrl}`);
+    console.log(`=======================================================`);
+  } else {
+    console.log(`[EMAIL SERVICE] Real password reset email delivered to ${recipient} (Message ID: ${info.messageId})`);
+  }
+
+  return { success: true, messageId: info.messageId, recipient };
+};
+
 module.exports = {
   PRODUCER_EMAIL,
   isRealSmtpConfigured,
   isEmailConfigured,
   maskEmail,
   sendVerificationEmail,
+  sendPasswordResetEmail,
   notifyProducerOfAnalyticsRequest,
   sendAnalyticsDossierEmail
 };
