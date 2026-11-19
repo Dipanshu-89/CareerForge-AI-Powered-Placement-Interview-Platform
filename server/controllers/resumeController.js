@@ -1,5 +1,83 @@
 const Resume = require('../models/Resume');
-const { calculateATSScore } = require('../services/atsScorerService');
+const { calculateATSScore, calculateATSScoreFromText } = require('../services/atsScorerService');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// ── Multer: in-memory storage (we only need the buffer for text extraction) ──
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB max
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.pdf', '.doc', '.docx', '.txt'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowed.includes(ext)) cb(null, true);
+    else cb(new Error('Only PDF, DOC, DOCX, and TXT files are allowed'), false);
+  }
+});
+
+/** Very lightweight text extraction — works for plain-text PDFs / TXT / DOCX */
+function extractText(buffer, originalname) {
+  const ext = path.extname(originalname).toLowerCase();
+  try {
+    if (ext === '.txt') {
+      return buffer.toString('utf8');
+    }
+    // For PDF / DOCX — extract visible ASCII/UTF-8 text from raw binary
+    // (no native parser dependency; works well for most ATS-generated resumes)
+    const raw = buffer.toString('latin1');
+    // Strip binary noise, keep printable characters + whitespace
+    const text = raw
+      .replace(/[^\x20-\x7E\n\r\t]/g, ' ')  // keep printable ASCII
+      .replace(/\s{3,}/g, ' ')               // collapse whitespace
+      .trim();
+    return text;
+  } catch {
+    return '';
+  }
+}
+
+exports.uploadResumeFile = [
+  upload.single('resume'),
+  async (req, res, next) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: 'No file uploaded.' });
+      }
+
+      const extractedText = extractText(req.file.buffer, req.file.originalname);
+      const ats = calculateATSScoreFromText(extractedText);
+
+      // Persist the result on the student's Resume document
+      const resume = await Resume.findOneAndUpdate(
+        { student: req.user.id },
+        {
+          $set: {
+            uploadedResume: {
+              fileName: req.file.originalname,
+              uploadedAt: new Date(),
+              atsScore: ats.score,
+              atsFeedback: ats.feedback,
+              extractedText: extractedText.slice(0, 5000) // store first 5k chars
+            }
+          }
+        },
+        { new: true, upsert: true }
+      );
+
+      res.json({
+        success: true,
+        message: 'Resume uploaded and analyzed.',
+        atsScore: ats.score,
+        atsFeedback: ats.feedback,
+        fileName: req.file.originalname,
+        uploadedAt: resume.uploadedResume.uploadedAt
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+];
 
 // @desc    Get logged in student's resume
 // @route   GET /api/resume/my-resume

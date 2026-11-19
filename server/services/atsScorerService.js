@@ -95,4 +95,83 @@ function calculateATSScore(resumeData) {
   };
 }
 
-module.exports = { calculateATSScore };
+/**
+ * ATS Scorer for raw plain-text resume content (from uploaded PDF/DOCX)
+ * Analyses keyword density, section presence, quantifiable metrics, and contact info
+ */
+function calculateATSScoreFromText(text) {
+  let score = 0;
+  const feedback = [];
+  const t = (text || '').toLowerCase();
+
+  // 1. Contact Info (Max 20 pts)
+  let contactScore = 0;
+  if (/@[\w.]+\.\w{2,}/.test(t)) contactScore += 5;          // email
+  if (/(\+?\d[\d\s\-().]{7,}\d)/.test(t)) contactScore += 5; // phone
+  if (/linkedin/.test(t)) contactScore += 5;                  // LinkedIn
+  if (/github|portfolio/.test(t)) contactScore += 5;          // GitHub/portfolio
+  score += contactScore;
+  if (contactScore < 15) feedback.push('Ensure your resume includes email, phone, LinkedIn, and GitHub/portfolio links.');
+
+  // 2. Professional Summary / Objective (Max 15 pts)
+  if (/summary|objective|profile|about me/i.test(text)) {
+    score += 15;
+  } else {
+    score += 5;
+    feedback.push('Add a professional summary or objective section to improve ATS ranking.');
+  }
+
+  // 3. Education Section (Max 15 pts)
+  if (/education|university|college|bachelor|master|b\.tech|m\.tech|b\.e|m\.e|b\.sc|degree/i.test(text)) {
+    score += 15;
+  } else {
+    feedback.push('Add an Education section with degree, institution, and graduation year.');
+  }
+
+  // 4. Experience / Work History (Max 20 pts)
+  if (/experience|internship|work history|employment|worked at|position/i.test(text)) {
+    const hasMetrics = /\d+%|\$\d+|\d+\s*(users|clients|requests|ms|times|projects)/i.test(text);
+    if (hasMetrics) {
+      score += 20;
+    } else {
+      score += 12;
+      feedback.push('Strengthen your experience section with quantifiable metrics (e.g., "reduced latency by 35%", "scaled to 10k users").');
+    }
+  } else {
+    score += 5;
+    feedback.push('Add an Experience section with internships, jobs, or open-source contributions.');
+  }
+
+  // 5. Projects (Max 15 pts)
+  if (/projects?|github\.com|live demo|deployed/i.test(text)) {
+    score += 15;
+  } else {
+    score += 5;
+    feedback.push('Include at least 2-3 technical projects with links and tech stacks to boost ATS score.');
+  }
+
+  // 6. Skills Section (Max 15 pts)
+  const techKeywords = [
+    'javascript','python','java','c\+\+','typescript','react','node','express','mongodb',
+    'postgresql','sql','docker','kubernetes','aws','git','html','css','rest','api',
+    'machine learning','tensorflow','flask','django','spring','kotlin','swift'
+  ];
+  const matchedSkills = techKeywords.filter(kw => new RegExp(kw, 'i').test(text));
+  if (matchedSkills.length >= 8) {
+    score += 15;
+  } else if (matchedSkills.length >= 4) {
+    score += 9;
+    feedback.push('Expand your skills section with more technologies, tools, and cloud platforms.');
+  } else {
+    score += 3;
+    feedback.push('List relevant programming languages, frameworks, and developer tools in a dedicated Skills section.');
+  }
+
+  const finalScore = Math.min(100, Math.max(0, score));
+  return {
+    score: finalScore,
+    feedback: feedback.length > 0 ? feedback : ['Your uploaded resume is well-structured and ATS-friendly!']
+  };
+}
+
+module.exports = { calculateATSScore, calculateATSScoreFromText };

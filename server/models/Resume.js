@@ -75,6 +75,13 @@ const resumeSchema = new mongoose.Schema(
     atsFeedback: {
       type: [String],
       default: []
+    },
+    uploadedResume: {
+      fileName: { type: String, default: '' },
+      uploadedAt: { type: Date },
+      atsScore: { type: Number, default: 0 },
+      atsFeedback: { type: [String], default: [] },
+      extractedText: { type: String, default: '' }
     }
   },
   { timestamps: true }

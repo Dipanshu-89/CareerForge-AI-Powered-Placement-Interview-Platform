@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../../api/axios';
 import {
   FileText,
@@ -16,7 +16,11 @@ import {
   User,
   Layers,
   ChevronRight,
-  Upload
+  Upload,
+  X,
+  CloudUpload,
+  FileCheck2,
+  TrendingUp
 } from 'lucide-react';
 
 const ResumeBuilder = () => {
@@ -57,6 +61,14 @@ const ResumeBuilder = () => {
   const [frameworksStr, setFrameworksStr] = useState('');
   const [toolsStr, setToolsStr] = useState('');
   const [softSkillsStr, setSoftSkillsStr] = useState('');
+
+  // ── Upload Resume & ATS Scoring ──
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [uploadDragging, setUploadDragging] = useState(false);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadResult, setUploadResult] = useState(null); // { atsScore, atsFeedback, fileName, uploadedAt }
+  const [uploadError, setUploadError] = useState('');
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     const fetchResume = async () => {
@@ -207,6 +219,62 @@ const ResumeBuilder = () => {
       projects: resumeData.projects.filter((_, i) => i !== index)
     });
   };
+
+  // ── Upload Resume file & get ATS score ──
+  const handleFileSelect = (file) => {
+    if (!file) return;
+    const allowed = ['application/pdf', 'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain'];
+    if (!allowed.includes(file.type) && !file.name.match(/\.(pdf|doc|docx|txt)$/i)) {
+      setUploadError('Only PDF, DOC, DOCX, or TXT files are supported.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('File size must be under 5 MB.');
+      return;
+    }
+    setUploadedFile(file);
+    setUploadError('');
+    setUploadResult(null);
+  };
+
+  const handleUploadSubmit = async () => {
+    if (!uploadedFile) return;
+    setUploadLoading(true);
+    setUploadError('');
+    try {
+      const formData = new FormData();
+      formData.append('resume', uploadedFile);
+      const res = await api.post('/resume/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setUploadResult({
+        atsScore: res.data.atsScore,
+        atsFeedback: res.data.atsFeedback,
+        fileName: res.data.fileName,
+        uploadedAt: res.data.uploadedAt
+      });
+    } catch (err) {
+      setUploadError(err.response?.data?.message || 'Upload failed. Please try again.');
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setUploadDragging(false);
+    const file = e.dataTransfer.files[0];
+    handleFileSelect(file);
+  };
+
+  const scoreColor = (s) =>
+    s >= 85 ? 'text-emerald-400' : s >= 65 ? 'text-brand-400' : 'text-amber-400';
+  const barColor = (s) =>
+    s >= 85 ? 'bg-emerald-500' : s >= 65 ? 'bg-brand-500' : 'bg-amber-500';
+  const scoreLabel = (s) =>
+    s >= 85 ? 'Excellent' : s >= 65 ? 'Good' : 'Needs Improvement';
 
   if (loading) {
     return (
@@ -820,6 +888,164 @@ const ResumeBuilder = () => {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* ══ Upload Resume for ATS Score ══ */}
+          <div className="no-print p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl space-y-4">
+            {/* Header */}
+            <div className="flex items-center gap-2">
+              <CloudUpload className="w-5 h-5 text-brand-400" />
+              <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+                Upload Resume for ATS Score
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 -mt-2">
+              Upload your existing PDF, DOCX, or TXT resume to instantly get an ATS compatibility score and improvement tips.
+            </p>
+
+            {/* Drag & Drop Zone */}
+            <div
+              onDragOver={(e) => { e.preventDefault(); setUploadDragging(true); }}
+              onDragLeave={() => setUploadDragging(false)}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className={`relative flex flex-col items-center justify-center gap-2 p-6 rounded-xl border-2 border-dashed cursor-pointer transition-all
+                ${uploadDragging
+                  ? 'border-brand-400 bg-brand-500/10'
+                  : uploadedFile
+                  ? 'border-emerald-500/50 bg-emerald-500/5'
+                  : 'border-slate-700 hover:border-slate-500 bg-slate-800/40'}`}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,.txt"
+                className="hidden"
+                onChange={(e) => handleFileSelect(e.target.files[0])}
+              />
+
+              {uploadedFile ? (
+                <>
+                  <FileCheck2 className="w-8 h-8 text-emerald-400" />
+                  <div className="text-center">
+                    <p className="text-xs font-semibold text-emerald-300">{uploadedFile.name}</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      {(uploadedFile.size / 1024).toFixed(1)} KB · Click to change file
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Upload className="w-7 h-7 text-slate-400" />
+                  <div className="text-center">
+                    <p className="text-xs font-semibold text-slate-300">Drop your resume here</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">PDF, DOCX, DOC, TXT · Max 5 MB</p>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Error Message */}
+            {uploadError && (
+              <div className="flex items-center gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                {uploadError}
+              </div>
+            )}
+
+            {/* Analyze Button */}
+            <button
+              onClick={handleUploadSubmit}
+              disabled={!uploadedFile || uploadLoading}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-600/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {uploadLoading ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Analyzing Resume...
+                </>
+              ) : (
+                <>
+                  <TrendingUp className="w-4 h-4" />
+                  Analyze ATS Score
+                </>
+              )}
+            </button>
+
+            {/* ATS Result Card */}
+            {uploadResult && (
+              <div className="space-y-3 pt-2 border-t border-slate-800">
+                {/* Score Header */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-slate-400" />
+                    <span className="text-[11px] text-slate-400 font-medium truncate max-w-[140px]">
+                      {uploadResult.fileName}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <span className={`text-2xl font-black ${scoreColor(uploadResult.atsScore)}`}>
+                      {uploadResult.atsScore}
+                    </span>
+                    <span className="text-slate-500 text-xs">/100</span>
+                  </div>
+                </div>
+
+                {/* Score Bar */}
+                <div>
+                  <div className="flex justify-between text-[10px] mb-1">
+                    <span className="text-slate-500">ATS Compatibility</span>
+                    <span className={`font-bold ${scoreColor(uploadResult.atsScore)}`}>
+                      {scoreLabel(uploadResult.atsScore)}
+                    </span>
+                  </div>
+                  <div className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${barColor(uploadResult.atsScore)}`}
+                      style={{ width: `${uploadResult.atsScore}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Score Bands Legend */}
+                <div className="grid grid-cols-3 gap-1.5 text-center">
+                  {[
+                    { label: '0–64', level: 'Needs Work', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
+                    { label: '65–84', level: 'Good', color: 'text-brand-400 bg-brand-500/10 border-brand-500/20' },
+                    { label: '85–100', level: 'Excellent', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' }
+                  ].map(band => (
+                    <div key={band.level} className={`text-[9px] font-semibold rounded-lg px-1 py-1.5 border ${band.color}`}>
+                      <div>{band.label}</div>
+                      <div className="opacity-70">{band.level}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Feedback List */}
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+                    ATS Feedback & Suggestions:
+                  </span>
+                  {uploadResult.atsFeedback.map((tip, i) => (
+                    <div key={i} className="flex items-start gap-2 text-[11px] text-slate-300 bg-slate-800/60 rounded-lg px-3 py-2">
+                      {uploadResult.atsScore >= 85
+                        ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                        : <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                      }
+                      {tip}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Re-upload CTA */}
+                <button
+                  onClick={() => { setUploadedFile(null); setUploadResult(null); setUploadError(''); }}
+                  className="w-full flex items-center justify-center gap-1.5 text-[11px] text-slate-400 hover:text-slate-200 py-1.5 transition-all"
+                >
+                  <X className="w-3.5 h-3.5" /> Clear & Upload Different Resume
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Live Document Preview Container */}
