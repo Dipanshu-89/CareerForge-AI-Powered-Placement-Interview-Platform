@@ -15,7 +15,8 @@ import {
   Briefcase,
   User,
   Layers,
-  ChevronRight
+  ChevronRight,
+  Upload
 } from 'lucide-react';
 
 const ResumeBuilder = () => {
@@ -33,7 +34,8 @@ const ResumeBuilder = () => {
       website: '',
       linkedin: '',
       github: '',
-      summary: ''
+      summary: '',
+      profilePicture: ''
     },
     education: [],
     experience: [],
@@ -61,7 +63,21 @@ const ResumeBuilder = () => {
       try {
         const res = await api.get('/resume/my-resume');
         const data = res.data.resume;
-        setResumeData(data);
+        setResumeData({
+          ...data,
+          personalInfo: {
+            fullName: '',
+            email: '',
+            phone: '',
+            location: '',
+            website: '',
+            linkedin: '',
+            github: '',
+            summary: '',
+            profilePicture: '',
+            ...(data.personalInfo || {})
+          }
+        });
         setTechSkillsStr((data.skills?.technical || []).join(', '));
         setFrameworksStr((data.skills?.frameworks || []).join(', '));
         setToolsStr((data.skills?.tools || []).join(', '));
@@ -104,6 +120,38 @@ const ResumeBuilder = () => {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  // Profile Picture Helpers
+  const handleProfilePicUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size exceeds 5MB limit. Please choose a smaller image.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setResumeData(prev => ({
+          ...prev,
+          personalInfo: {
+            ...prev.personalInfo,
+            profilePicture: reader.result
+          }
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveProfilePic = () => {
+    setResumeData(prev => ({
+      ...prev,
+      personalInfo: {
+        ...prev.personalInfo,
+        profilePicture: ''
+      }
+    }));
   };
 
   // Education Helpers
@@ -245,6 +293,67 @@ const ResumeBuilder = () => {
               <h3 className="text-sm font-bold text-white border-b border-slate-800 pb-2">
                 Personal Contact & Professional Summary
               </h3>
+
+              {/* Profile Picture Option */}
+              <div className="p-4 rounded-xl bg-slate-800/60 border border-slate-700/60 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div className="relative flex-shrink-0">
+                  {resumeData.personalInfo.profilePicture ? (
+                    <img
+                      src={resumeData.personalInfo.profilePicture}
+                      alt="Student Profile"
+                      className="w-16 h-16 rounded-full object-cover border-2 border-brand-500 shadow-md"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-slate-800 border-2 border-dashed border-slate-600 flex flex-col items-center justify-center text-slate-400">
+                      <User className="w-6 h-6 text-slate-400" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex-1 space-y-2 w-full">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-slate-300">
+                      Profile Picture (Top-Right on Resume)
+                    </label>
+                    <span className="text-[11px] text-slate-500">Max 5MB (JPG, PNG, WebP)</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-xs font-medium transition-all shadow-sm">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Upload Photo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleProfilePicUpload}
+                      />
+                    </label>
+
+                    {resumeData.personalInfo.profilePicture && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveProfilePic}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-medium transition-all"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Remove Photo</span>
+                      </button>
+                    )}
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="Or paste external image URL (e.g. https://...)"
+                      value={resumeData.personalInfo.profilePicture || ''}
+                      onChange={(e) => setResumeData({
+                        ...resumeData,
+                        personalInfo: { ...resumeData.personalInfo, profilePicture: e.target.value }
+                      })}
+                      className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs outline-none focus:border-brand-500 placeholder:text-slate-500"
+                    />
+                  </div>
+                </div>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -717,17 +826,37 @@ const ResumeBuilder = () => {
           <div className="print-area bg-white text-slate-900 rounded-2xl shadow-2xl p-6 sm:p-8 font-serif leading-relaxed border border-slate-200">
             
             {/* Resume Header */}
-            <div className="border-b-2 border-slate-900 pb-4 text-center">
-              <h1 className="text-2xl font-black tracking-tight text-slate-950 font-sans uppercase">
-                {resumeData.personalInfo?.fullName || 'Alex Rivera'}
-              </h1>
-              <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-slate-600 font-sans mt-1">
-                {resumeData.personalInfo?.email && <span>{resumeData.personalInfo.email}</span>}
-                {resumeData.personalInfo?.phone && <span>• {resumeData.personalInfo.phone}</span>}
-                {resumeData.personalInfo?.location && <span>• {resumeData.personalInfo.location}</span>}
-                {resumeData.personalInfo?.linkedin && <span>• LinkedIn</span>}
-                {resumeData.personalInfo?.github && <span>• GitHub</span>}
+            <div className="border-b-2 border-slate-900 pb-4 flex items-center justify-between gap-4">
+              <div className="text-left flex-1 min-w-0">
+                <h1 className="text-2xl font-black tracking-tight text-slate-950 font-sans uppercase">
+                  {resumeData.personalInfo?.fullName || 'Alex Rivera'}
+                </h1>
+                <div className="flex flex-wrap items-center justify-start gap-x-2 gap-y-1 text-xs text-slate-600 font-sans mt-1">
+                  {resumeData.personalInfo?.email && <span>{resumeData.personalInfo.email}</span>}
+                  {resumeData.personalInfo?.phone && <span>• {resumeData.personalInfo.phone}</span>}
+                  {resumeData.personalInfo?.location && <span>• {resumeData.personalInfo.location}</span>}
+                  {resumeData.personalInfo?.linkedin && <span>• LinkedIn</span>}
+                  {resumeData.personalInfo?.github && <span>• GitHub</span>}
+                </div>
               </div>
+
+              {/* Profile Pic at Top Right */}
+              {resumeData.personalInfo?.profilePicture ? (
+                <div className="flex-shrink-0">
+                  <img
+                    src={resumeData.personalInfo.profilePicture}
+                    alt={resumeData.personalInfo.fullName || 'Profile'}
+                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-2 border-slate-300 shadow-sm"
+                  />
+                </div>
+              ) : (
+                <div className="flex-shrink-0 no-print">
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-slate-100 border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400">
+                    <User className="w-7 h-7 text-slate-400" />
+                    <span className="text-[9px] font-sans mt-0.5 text-slate-400 font-medium">Photo</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Summary */}

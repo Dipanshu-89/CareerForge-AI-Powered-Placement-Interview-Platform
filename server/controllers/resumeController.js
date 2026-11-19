@@ -20,7 +20,8 @@ exports.getMyResume = async (req, res, next) => {
           github: req.user.githubUrl || '',
           linkedin: req.user.linkedinUrl || '',
           website: req.user.portfolioUrl || '',
-          summary: req.user.bio || 'Aspiring Software Engineer passionate about developing high-performance web applications and distributed systems.'
+          summary: req.user.bio || 'Aspiring Software Engineer passionate about developing high-performance web applications and distributed systems.',
+          profilePicture: req.user.avatar || ''
         },
         education: [
           {

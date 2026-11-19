@@ -16,7 +16,8 @@ const resumeSchema = new mongoose.Schema(
       website: { type: String, default: '' },
       linkedin: { type: String, default: '' },
       github: { type: String, default: '' },
-      summary: { type: String, default: '' }
+      summary: { type: String, default: '' },
+      profilePicture: { type: String, default: '' }
     },
     education: [
       {

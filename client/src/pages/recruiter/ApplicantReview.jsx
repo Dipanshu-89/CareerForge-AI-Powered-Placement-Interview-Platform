@@ -243,9 +243,18 @@ const ApplicantReview = () => {
             </button>
 
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h2 className="text-lg font-bold text-white">
-                Resume: {selectedResume.personalInfo?.fullName || 'Candidate'}
-              </h2>
+              <div className="flex items-center gap-3">
+                {selectedResume.personalInfo?.profilePicture && (
+                  <img
+                    src={selectedResume.personalInfo.profilePicture}
+                    alt={selectedResume.personalInfo.fullName || 'Candidate'}
+                    className="w-10 h-10 rounded-full object-cover border border-slate-700"
+                  />
+                )}
+                <h2 className="text-lg font-bold text-white">
+                  Resume: {selectedResume.personalInfo?.fullName || 'Candidate'}
+                </h2>
+              </div>
               <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
                 ATS Score: {selectedResume.atsScore}/100
               </span>

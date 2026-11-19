@@ -23,19 +23,20 @@ const Footer = () => {
             <h4 className="text-xs font-semibold text-slate-200 uppercase tracking-wider mb-3">For Students</h4>
             <ul className="space-y-2 text-xs">
               <li><a href="/jobs" className="hover:text-blue-600 transition-colors">Placement Job Board</a></li>
-              <li><a href="/student/resume" className="hover:text-brand-400 transition-colors">ATS Resume Builder</a></li>
-              <li><a href="/interview/setup" className="hover:text-brand-400 transition-colors">Live AI Mock Interview</a></li>
-              <li><a href="/student/applications" className="hover:text-brand-400 transition-colors">Application Tracker</a></li>
+              <li><a href="/student/resume" className="hover:text-blue-600 transition-colors">ATS Resume Builder</a></li>
+              <li><a href="/interview/setup" className="hover:text-blue-600
+              transition-colors">Live AI Mock Interview</a></li>
+              <li><a href="/student/applications" className="hover:text-blue-600 transition-colors">Application Tracker</a></li>
             </ul>
           </div>
 
           <div>
             <h4 className="text-xs font-semibold text-slate-200 uppercase tracking-wider mb-3">For Recruiters</h4>
             <ul className="space-y-2 text-xs">
-              <li><a href="/recruiter/dashboard" className="hover:text-brand-400 transition-colors">Recruiter Talent Hub</a></li>
-              <li><a href="/recruiter/post-job" className="hover:text-brand-400 transition-colors">Post Tech Jobs</a></li>
-              <li><a href="/recruiter/dashboard" className="hover:text-brand-400 transition-colors">Applicant AI Scorecards</a></li>
-              <li><a href="/admin/dashboard" className="hover:text-brand-400 transition-colors">Hiring Pipeline</a></li>
+              <li><a href="/recruiter/dashboard" className="hover:text-blue-600 transition-colors">Recruiter Talent Hub</a></li>
+              <li><a href="/recruiter/post-job" className="hover:text-blue-600 transition-colors">Post Tech Jobs</a></li>
+              <li><a href="/recruiter/dashboard" className="hover:text-blue-600 transition-colors">Applicant AI Scorecards</a></li>
+              <li><a href="/admin/dashboard" className="hover:text-blue-600 transition-colors">Hiring Pipeline</a></li>
             </ul>
           </div>
 
