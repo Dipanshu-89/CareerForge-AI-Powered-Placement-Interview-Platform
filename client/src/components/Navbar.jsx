@@ -15,7 +15,8 @@ import {
   X,
   ChevronDown,
   Bell,
-  Clock
+  Clock,
+  Award
 } from 'lucide-react';
 
 const Navbar = () => {
@@ -136,6 +137,15 @@ const Navbar = () => {
                 >
                   <LayoutDashboard className="w-4 h-4" />
                   Applications
+                </Link>
+                <Link
+                  to="/student/interviews"
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/student/interviews') ? 'bg-slate-800 text-brand-400' : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Award className="w-4 h-4 text-purple-400" />
+                  Mock History
                 </Link>
                 <Link
                   to="/student/profile"
@@ -381,6 +391,13 @@ const Navbar = () => {
                 className="block px-3 py-2 rounded-lg text-base font-medium text-brand-400 hover:bg-slate-800"
               >
                 AI Interview Room
+              </Link>
+              <Link
+                to="/student/interviews"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-lg text-base font-medium text-purple-400 hover:bg-slate-800"
+              >
+                Mock Interview History
               </Link>
               <Link
                 to="/student/profile"

@@ -186,27 +186,33 @@ const StudentDashboard = () => {
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+        <Link
+          to="/student/interviews"
+          className="p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-indigo-500/40 transition-all flex items-center gap-4 group"
+        >
+          <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:scale-105 transition-transform">
             <Bot className="w-6 h-6" />
           </div>
           <div>
-            <span className="text-xs text-slate-400 font-medium">AI Mock Rounds</span>
+            <span className="text-xs text-slate-400 font-medium group-hover:text-slate-300">AI Mock Rounds</span>
             <div className="text-2xl font-bold text-indigo-400 mt-0.5">{stats.interviewsCount}</div>
           </div>
-        </div>
+        </Link>
 
-        <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+        <Link
+          to="/student/interviews"
+          className="p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-purple-500/40 transition-all flex items-center gap-4 group"
+        >
+          <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 group-hover:scale-105 transition-transform">
             <Award className="w-6 h-6" />
           </div>
           <div>
-            <span className="text-xs text-slate-400 font-medium">Best Interview Score</span>
+            <span className="text-xs text-slate-400 font-medium group-hover:text-slate-300">Best Interview Score</span>
             <div className="text-2xl font-bold text-purple-400 mt-0.5">
               {stats.highestScore > 0 ? `${stats.highestScore}%` : 'N/A'}
             </div>
           </div>
-        </div>
+        </Link>
 
       </div>
 
