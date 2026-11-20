@@ -685,6 +685,28 @@ async function evaluateInterviewAnswer(questionText, expectedKeywords, candidate
       ? codeSnippet.trim()
       : '';
 
+      const safeQuestion =
+  typeof questionText === 'string'
+    ? questionText.trim()
+    : '';
+
+const normalizedDifficulty =
+  typeof difficulty === 'string' && difficulty.trim()
+    ? difficulty.trim()
+    : 'Mid';
+
+    if (!safeQuestion) {
+  return {
+    score: 0,
+    accuracy: 0,
+    clarity: 0,
+    depth: 0,
+    strengths: 'Invalid interview question.',
+    improvements: 'Provide a valid question.',
+    modelAnswer: 'A valid interview question is required.'
+  };
+}
+
   if (!answerText && !submittedCode) {
     return {
       score: 0,
@@ -702,10 +724,10 @@ async function evaluateInterviewAnswer(questionText, expectedKeywords, candidate
   if (apiKey && apiKey.trim() !== '') {
     try {
       const prompt = `You are a strict but constructive senior engineering interviewer evaluating a candidate's answer.
-Difficulty level: ${difficulty}
-Question: "${questionText}"
-Candidate Answer: "${candidateAnswer}"
-${codeSnippet ? `Candidate Code: """${codeSnippet}"""` : ''}
+Difficulty level: ${normalizedDifficulty}
+Question: "${safeQuestion}"
+Candidate Answer: "${answerText}"
+${submittedCode ? `Candidate Code: """${submittedCode}"""` : ''}
 
 Evaluate the candidate and return strictly valid JSON matching this schema:
 {
