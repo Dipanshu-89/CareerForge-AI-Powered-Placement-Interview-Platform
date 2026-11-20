@@ -2,6 +2,7 @@ const Application = require('../models/Application');
 const Job = require('../models/Job');
 const Resume = require('../models/Resume');
 const InterviewSession = require('../models/InterviewSession');
+const { createNotification } = require('./notificationController');
 
 // @desc    Apply for a job
 // @route   POST /api/applications/apply/:jobId
@@ -59,6 +60,28 @@ exports.applyForJob = async (req, res, next) => {
 
     // Increment applicantsCount on Job
     await Job.findByIdAndUpdate(jobId, { $inc: { applicantsCount: 1 } });
+
+    // Send confirmation notification to student
+    createNotification({
+      recipient: req.user.id,
+      type: 'application_status',
+      title: 'Application Submitted',
+      message: `Your application for ${job.title} at ${job.company} has been received.`,
+      link: '/student/applications',
+      metadata: { applicationId: application._id, jobId: job._id }
+    });
+
+    // Send alert notification to recruiter
+    if (job.recruiter) {
+      createNotification({
+        recipient: job.recruiter,
+        type: 'application_received',
+        title: 'New Applicant Received',
+        message: `${req.user.name || 'A candidate'} applied for ${job.title}.`,
+        link: `/recruiter/job/${jobId}/applicants`,
+        metadata: { applicationId: application._id, jobId: job._id }
+      });
+    }
 
     res.status(201).json({
       success: true,
@@ -141,10 +164,25 @@ exports.updateApplicationStatus = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Not authorized to modify this application' });
     }
 
+    const oldStatus = application.status;
     if (status) application.status = status;
     if (notes !== undefined) application.notes = notes;
 
     await application.save();
+
+    // Trigger notification if status changed
+    if (status && status !== oldStatus) {
+      const populatedJob = await Job.findById(application.job);
+      const companyName = populatedJob?.company || 'Recruiter';
+      createNotification({
+        recipient: application.student,
+        type: 'application_status',
+        title: `Application Status: ${status}`,
+        message: `${companyName} updated your application for "${populatedJob?.title || 'role'}" to ${status}.`,
+        link: '/student/applications',
+        metadata: { applicationId: application._id, status }
+      });
+    }
 
     res.json({
       success: true,

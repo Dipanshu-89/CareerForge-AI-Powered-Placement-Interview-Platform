@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const InterviewSession = require('../models/InterviewSession');
+const { createNotification } = require('../controllers/notificationController');
 const {
   generateInterviewQuestion,
   evaluateInterviewAnswer,
@@ -213,6 +214,15 @@ const registerInterviewSocket = (io) => {
         if (durationSeconds) session.durationSeconds = durationSeconds;
 
         await session.save();
+
+        createNotification({
+          recipient: session.student,
+          type: 'interview_complete',
+          title: 'Mock Interview Completed',
+          message: `Your ${session.role} mock interview scored ${session.totalScore}%. Click to view your detailed scorecard.`,
+          link: `/interview/report/${session._id}`,
+          metadata: { sessionId: session._id, totalScore: session.totalScore }
+        });
 
         interviewNamespace.to(sessionId).emit('session-finished', {
           sessionId,

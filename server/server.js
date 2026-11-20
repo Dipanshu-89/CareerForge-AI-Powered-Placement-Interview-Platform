@@ -22,6 +22,7 @@ const interviewRoutes = require('./routes/interviewRoutes');
 const resumeRoutes = require('./routes/resumeRoutes');
 const userRoutes = require('./routes/userRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 // Models for auto-seed check
 const User = require('./models/User');
@@ -77,6 +78,7 @@ app.use('/api/interviews', interviewRoutes);
 app.use('/api/resume', resumeRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Register real-time Socket.io namespace & events
 registerInterviewSocket(io);
