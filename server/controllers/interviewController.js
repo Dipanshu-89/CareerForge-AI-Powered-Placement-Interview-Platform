@@ -128,19 +128,73 @@ exports.uploadRecording = async (req, res, next) => {
   }
 };
 
-// @desc    Get all interview sessions for current student
+// @desc    Get all interview sessions for current student with filtering & stats
 // @route   GET /api/interviews/my-sessions
 // @access  Private (Student)
 exports.getMySessions = async (req, res, next) => {
   try {
-    const sessions = await InterviewSession.find({ student: req.user.id })
-      .sort({ createdAt: -1 });
+    const { role, difficulty, status, sort } = req.query;
+    const query = { student: req.user.id };
+
+    if (role && role !== 'all') {
+      query.role = { $regex: role, $options: 'i' };
+    }
+    if (difficulty && difficulty !== 'all') {
+      query.difficulty = difficulty;
+    }
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    let sortOption = { createdAt: -1 };
+    if (sort === 'score_desc') sortOption = { totalScore: -1 };
+    if (sort === 'score_asc') sortOption = { totalScore: 1 };
+    if (sort === 'oldest') sortOption = { createdAt: 1 };
+
+    const sessions = await InterviewSession.find(query).sort(sortOption);
+
+    // Compute student aggregate stats
+    const allUserSessions = await InterviewSession.find({ student: req.user.id });
+    const completed = allUserSessions.filter(s => s.status === 'completed');
+    const totalPracticeSecs = completed.reduce((acc, s) => acc + (s.durationSeconds || s.recordingDuration || 0), 0);
+    const highestScore = completed.length > 0 ? Math.max(...completed.map(s => s.totalScore || 0)) : 0;
+    const avgScore = completed.length > 0 ? Math.round(completed.reduce((acc, s) => acc + (s.totalScore || 0), 0) / completed.length) : 0;
 
     res.json({
       success: true,
       count: sessions.length,
+      stats: {
+        totalSessions: allUserSessions.length,
+        completedSessions: completed.length,
+        inProgressSessions: allUserSessions.filter(s => s.status === 'in_progress').length,
+        highestScore,
+        avgScore,
+        totalPracticeMinutes: Math.round(totalPracticeSecs / 60)
+      },
       sessions
     });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Delete an interview session
+// @route   DELETE /api/interviews/:id
+// @access  Private (Student/Admin)
+exports.deleteSession = async (req, res, next) => {
+  try {
+    const session = await InterviewSession.findById(req.params.id);
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Session not found' });
+    }
+
+    if (session.student.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this session' });
+    }
+
+    await session.deleteOne();
+
+    res.json({ success: true, message: 'Interview session removed' });
   } catch (err) {
     next(err);
   }

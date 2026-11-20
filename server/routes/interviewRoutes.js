@@ -6,7 +6,8 @@ const {
   getMySessions,
   getAllSessions,
   uploadMiddleware,
-  uploadRecording
+  uploadRecording,
+  deleteSession
 } = require('../controllers/interviewController');
 const { protect } = require('../middleware/auth');
 const { authorize } = require('../middleware/rbac');
@@ -16,5 +17,6 @@ router.post('/:id/recording', protect, uploadMiddleware, uploadRecording);
 router.get('/my-sessions', protect, authorize('student'), getMySessions);
 router.get('/admin/all', protect, authorize('admin'), getAllSessions);
 router.get('/:id', protect, getSessionById);
+router.delete('/:id', protect, deleteSession);
 
 module.exports = router;
