@@ -18,7 +18,8 @@ import {
   Send,
   X,
   CheckCircle2,
-  DollarSign
+  DollarSign,
+  User
 } from 'lucide-react';
 
 const StudentDashboard = () => {
@@ -128,7 +129,7 @@ const StudentDashboard = () => {
           </p>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2.5">
           <Link
             to="/interview/setup"
             className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs shadow-lg shadow-brand-600/30 transition-all flex items-center gap-2"
@@ -142,6 +143,13 @@ const StudentDashboard = () => {
           >
             <FileText className="w-4 h-4" />
             Edit Resume
+          </Link>
+          <Link
+            to="/student/profile"
+            className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 hover:border-brand-500/50 transition-all flex items-center gap-2"
+          >
+            <User className="w-4 h-4 text-brand-400" />
+            My Profile
           </Link>
         </div>
       </div>
