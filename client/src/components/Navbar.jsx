@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import api from '../api/axios';
 import {
   Sparkles,
   Briefcase,
@@ -12,7 +13,9 @@ import {
   Shield,
   Menu,
   X,
-  ChevronDown
+  ChevronDown,
+  Bell,
+  Clock
 } from 'lucide-react';
 
 const Navbar = () => {
@@ -21,6 +24,26 @@ const Navbar = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [demoDropdownOpen, setDemoDropdownOpen] = useState(false);
+  const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [recentNotifs, setRecentNotifs] = useState([]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      const fetchNotifs = async () => {
+        try {
+          const res = await api.get('/notifications?limit=4');
+          setUnreadCount(res.data.unreadCount || 0);
+          setRecentNotifs(res.data.notifications || []);
+        } catch (err) {
+          // Silent fallback
+        }
+      };
+      fetchNotifs();
+      const interval = setInterval(fetchNotifs, 30000); // Poll every 30s
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated, location.pathname]);
 
   const handleLogout = () => {
     logout();
@@ -209,6 +232,68 @@ const Navbar = () => {
 
             {isAuthenticated ? (
               <div className="flex items-center gap-3">
+                {/* Notifications Bell Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setNotifDropdownOpen(!notifDropdownOpen)}
+                    className="relative p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-300 hover:text-white transition-all shadow-sm"
+                    title="Notifications"
+                  >
+                    <Bell className="w-4 h-4" />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-brand-500 text-[10px] font-bold text-white flex items-center justify-center animate-pulse shadow-md shadow-brand-500/50">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {notifDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-80 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 space-y-2">
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-800 px-1">
+                        <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <Bell className="w-3.5 h-3.5 text-brand-400" />
+                          Notifications
+                        </span>
+                        {unreadCount > 0 && (
+                          <span className="text-[10px] bg-brand-500/10 text-brand-400 px-2 py-0.5 rounded-full font-bold">
+                            {unreadCount} unread
+                          </span>
+                        )}
+                      </div>
+
+                      {recentNotifs.length === 0 ? (
+                        <p className="text-xs text-slate-400 text-center py-4">No notifications yet</p>
+                      ) : (
+                        <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                          {recentNotifs.map(n => (
+                            <Link
+                              key={n._id}
+                              to={n.link || '/student/notifications'}
+                              onClick={() => setNotifDropdownOpen(false)}
+                              className={`block p-2 rounded-xl text-xs transition-colors ${
+                                n.isRead ? 'bg-slate-800/40 text-slate-400 hover:bg-slate-800' : 'bg-brand-500/10 text-slate-200 hover:bg-brand-500/20'
+                              }`}
+                            >
+                              <div className="font-semibold text-white truncate">{n.title}</div>
+                              <div className="text-[11px] text-slate-400 line-clamp-1">{n.message}</div>
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="pt-2 border-t border-slate-800">
+                        <Link
+                          to="/student/notifications"
+                          onClick={() => setNotifDropdownOpen(false)}
+                          className="block text-center text-xs font-bold text-brand-400 hover:text-brand-300 py-1"
+                        >
+                          View All Notifications →
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <Link
                   to={isStudent ? '/student/dashboard' : isRecruiter ? '/recruiter/dashboard' : '/admin/dashboard'}
                   className="flex items-center gap-2 text-sm text-slate-200 hover:text-white"
@@ -303,6 +388,18 @@ const Navbar = () => {
                 className="block px-3 py-2 rounded-lg text-base font-medium text-slate-300 hover:bg-slate-800"
               >
                 My Profile & Settings
+              </Link>
+              <Link
+                to="/student/notifications"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-between px-3 py-2 rounded-lg text-base font-medium text-slate-300 hover:bg-slate-800"
+              >
+                <span>Notifications</span>
+                {unreadCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-brand-500 text-white">
+                    {unreadCount}
+                  </span>
+                )}
               </Link>
             </>
           )}
