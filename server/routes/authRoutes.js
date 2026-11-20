@@ -13,7 +13,8 @@ const {
   getMe,
   updateProfile,
   demoLogin,
-  getEmailStatus
+  getEmailStatus,
+  changePassword
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 
@@ -30,5 +31,6 @@ router.post('/demo', demoLogin);
 router.get('/email-status', getEmailStatus);
 router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);
+router.put('/change-password', protect, changePassword);
 
 module.exports = router;
