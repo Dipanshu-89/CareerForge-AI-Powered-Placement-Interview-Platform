@@ -114,6 +114,15 @@ const Navbar = () => {
                   <LayoutDashboard className="w-4 h-4" />
                   Applications
                 </Link>
+                <Link
+                  to="/student/profile"
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/student/profile') ? 'bg-slate-800 text-brand-400' : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <User className="w-4 h-4" />
+                  Profile
+                </Link>
               </>
             )}
 
@@ -287,6 +296,13 @@ const Navbar = () => {
                 className="block px-3 py-2 rounded-lg text-base font-medium text-brand-400 hover:bg-slate-800"
               >
                 AI Interview Room
+              </Link>
+              <Link
+                to="/student/profile"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-lg text-base font-medium text-slate-300 hover:bg-slate-800"
+              >
+                My Profile & Settings
               </Link>
             </>
           )}
