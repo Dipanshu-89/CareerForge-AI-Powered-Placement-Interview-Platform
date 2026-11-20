@@ -631,10 +631,72 @@ Output strictly valid JSON with this exact schema:
   };
 }
 
+
 /**
+ * Validate Gemini evaluation response
+ */
+function normalizeEvaluation(result) {
+  if (!result || typeof result !== 'object' || Array.isArray(result)) {
+    return null;
+  }
+
+  const scoreFields = ['score', 'accuracy', 'clarity', 'depth'];
+
+  const validScores = scoreFields.every((field) =>
+    typeof result[field] === 'number' &&
+    Number.isFinite(result[field]) &&
+    result[field] >= 0 &&
+    result[field] <= 100
+  );
+
+  if (!validScores) return null;
+
+  if (
+    typeof result.strengths !== 'string' ||
+    !result.strengths.trim() ||
+    typeof result.improvements !== 'string' ||
+    !result.improvements.trim()
+  ) {
+    return null;
+  }
+
+  return {
+    ...result,
+    score: Math.round(result.score),
+    accuracy: Math.round(result.accuracy),
+    clarity: Math.round(result.clarity),
+    depth: Math.round(result.depth)
+  };
+}
+
+/*
  * Evaluate candidate response with rubric scoring
  */
 async function evaluateInterviewAnswer(questionText, expectedKeywords, candidateAnswer, codeSnippet = '', difficulty = 'Mid') {
+
+  // Handle empty interview submissions
+  const answerText =
+    typeof candidateAnswer === 'string'
+      ? candidateAnswer.trim()
+      : '';
+
+  const submittedCode =
+    typeof codeSnippet === 'string'
+      ? codeSnippet.trim()
+      : '';
+
+  if (!answerText && !submittedCode) {
+    return {
+      score: 0,
+      accuracy: 0,
+      clarity: 0,
+      depth: 0,
+      strengths: 'No answer was provided.',
+      improvements: 'Attempt the question and explain your understanding.',
+      modelAnswer: 'Provide a relevant explanation addressing the question.'
+    };
+  }
+
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (apiKey && apiKey.trim() !== '') {
@@ -656,10 +718,14 @@ Evaluate the candidate and return strictly valid JSON matching this schema:
   "modelAnswer": "<A concise, high-impact model answer>"
 }`;
 
-      const result = await callGemini(apiKey, prompt);
-      if (result && typeof result.score === 'number') {
-        return result;
-      }
+const result = await callGemini(apiKey, prompt);
+
+const normalizedResult = normalizeEvaluation(result);
+
+if (normalizedResult) {
+    return normalizedResult;
+}
+
     } catch (err) {
       console.warn('evaluateInterviewAnswer Gemini error, using heuristic engine:', err.message);
     }
