@@ -16,6 +16,7 @@ import StudentDashboard from './pages/student/StudentDashboard';
 import ResumeBuilder from './pages/student/ResumeBuilder';
 import MyApplications from './pages/student/MyApplications';
 import StudentProfile from './pages/student/StudentProfile';
+import StudentNotifications from './pages/student/StudentNotifications';
 
 // Interview Suite
 import InterviewSetup from './pages/interview/InterviewSetup';
@@ -50,6 +51,7 @@ function App() {
                 <Route path="/student/resume" element={<ResumeBuilder />} />
                 <Route path="/student/applications" element={<MyApplications />} />
                 <Route path="/student/profile" element={<StudentProfile />} />
+                <Route path="/student/notifications" element={<StudentNotifications />} />
                 <Route path="/interview/setup" element={<InterviewSetup />} />
                 <Route path="/interview/room/:sessionId" element={<LiveInterview />} />
               </Route>
