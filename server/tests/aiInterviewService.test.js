@@ -6,7 +6,8 @@ process.env.GEMINI_API_KEY = '';
 
 const {
   evaluateInterviewAnswer,
-  generateOverallFeedback
+  generateOverallFeedback,
+  normalizeEvaluation
 } = require('../services/aiInterviewService');
 
 // Test 1: Empty answer should return zero score
@@ -86,3 +87,90 @@ test('Valid evaluations should calculate correct average', () => {
   assert.equal(result.totalScore, 80);
 });
 
+
+// Test 7: Valid Gemini response should be accepted
+test('Valid Gemini response should be accepted', () => {
+  const result = normalizeEvaluation({
+    score: 85,
+    accuracy: 90,
+    clarity: 80,
+    depth: 85,
+    strengths: 'Good technical understanding',
+    improvements: 'Explain trade-offs in more detail',
+    modelAnswer: 'A clear technical explanation'
+  });
+
+  assert.notEqual(result, null);
+  assert.equal(result.score, 85);
+});
+
+// Test 8: Scores above 100 should be rejected
+test('Gemini response with score above 100 should be rejected', () => {
+  const result = normalizeEvaluation({
+    score: 150,
+    accuracy: 90,
+    clarity: 80,
+    depth: 85,
+    strengths: 'Good answer',
+    improvements: 'Add more details'
+  });
+
+  assert.equal(result, null);
+});
+
+// Test 9: Negative scores should be rejected
+test('Gemini response with negative score should be rejected', () => {
+  const result = normalizeEvaluation({
+    score: -10,
+    accuracy: 90,
+    clarity: 80,
+    depth: 85,
+    strengths: 'Good answer',
+    improvements: 'Add more details'
+  });
+
+  assert.equal(result, null);
+});
+
+// Test 10: Missing accuracy should be rejected
+test('Gemini response with missing accuracy should be rejected', () => {
+  const result = normalizeEvaluation({
+    score: 85,
+    clarity: 80,
+    depth: 85,
+    strengths: 'Good answer',
+    improvements: 'Add more details'
+  });
+
+  assert.equal(result, null);
+});
+
+// Test 11: Missing strengths should be rejected
+test('Gemini response with missing strengths should be rejected', () => {
+  const result = normalizeEvaluation({
+    score: 85,
+    accuracy: 90,
+    clarity: 80,
+    depth: 85,
+    improvements: 'Add more details'
+  });
+
+  assert.equal(result, null);
+});
+
+// Test 12: Decimal scores should be rounded
+test('Gemini decimal scores should be rounded', () => {
+  const result = normalizeEvaluation({
+    score: 85.6,
+    accuracy: 90.4,
+    clarity: 79.5,
+    depth: 84.2,
+    strengths: 'Good technical understanding',
+    improvements: 'Explain edge cases'
+  });
+
+  assert.equal(result.score, 86);
+  assert.equal(result.accuracy, 90);
+  assert.equal(result.clarity, 80);
+  assert.equal(result.depth, 84);
+});

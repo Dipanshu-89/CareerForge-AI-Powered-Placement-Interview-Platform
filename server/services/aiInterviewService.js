@@ -875,10 +875,12 @@ const avgScore = Math.round(
   };
 }
 
+
 module.exports = {
   generateInterviewQuestion,
   evaluateInterviewAnswer,
   generateOverallFeedback,
   ROLE_QUESTION_BANKS,
-  DEFAULT_QUESTIONS
+  DEFAULT_QUESTIONS,
+  normalizeEvaluation
 };
