@@ -735,16 +735,35 @@ if (normalizedResult) {
   const text = (candidateAnswer || '').toLowerCase();
   const code = (codeSnippet || '').trim();
 
-  let matchedKeywords = 0;
-  if (expectedKeywords && expectedKeywords.length > 0) {
-    expectedKeywords.forEach(kw => {
-      if (text.includes(kw.toLowerCase())) matchedKeywords++;
-    });
-  }
 
-  const keywordRatio = expectedKeywords && expectedKeywords.length > 0
-    ? matchedKeywords / expectedKeywords.length
-    : 0.7;
+const normalizedKeywords = Array.isArray(expectedKeywords)
+  ? [...new Set(
+      expectedKeywords
+        .filter(kw => typeof kw === 'string')
+        .map(kw => kw.trim().replace(/\s+/g, ' ').toLowerCase())
+        .filter(Boolean)
+    )]
+  : [];
+
+let matchedKeywords = 0;
+
+normalizedKeywords.forEach(keyword => {
+  const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  const keywordPattern = new RegExp(
+    `(^|[^\\w])${escapedKeyword}(?=$|[^\\w])`,
+    'i'
+  );
+
+  if (keywordPattern.test(text)) {
+    matchedKeywords++;
+  }
+});
+
+const keywordRatio = normalizedKeywords.length > 0
+  ? matchedKeywords / normalizedKeywords.length
+  : 0.7;
+
 
   // Word count analysis
   const words = text.split(/\s+/).filter(Boolean).length;
