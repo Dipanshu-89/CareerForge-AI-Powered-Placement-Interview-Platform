@@ -631,19 +631,103 @@ Output strictly valid JSON with this exact schema:
   };
 }
 
+
 /**
+ * Validate Gemini evaluation response
+ */
+function normalizeEvaluation(result) {
+  if (!result || typeof result !== 'object' || Array.isArray(result)) {
+    return null;
+  }
+
+  const scoreFields = ['score', 'accuracy', 'clarity', 'depth'];
+
+  const validScores = scoreFields.every((field) =>
+    typeof result[field] === 'number' &&
+    Number.isFinite(result[field]) &&
+    result[field] >= 0 &&
+    result[field] <= 100
+  );
+
+  if (!validScores) return null;
+
+  if (
+    typeof result.strengths !== 'string' ||
+    !result.strengths.trim() ||
+    typeof result.improvements !== 'string' ||
+    !result.improvements.trim()
+  ) {
+    return null;
+  }
+
+  return {
+    ...result,
+    score: Math.round(result.score),
+    accuracy: Math.round(result.accuracy),
+    clarity: Math.round(result.clarity),
+    depth: Math.round(result.depth)
+  };
+}
+
+/*
  * Evaluate candidate response with rubric scoring
  */
 async function evaluateInterviewAnswer(questionText, expectedKeywords, candidateAnswer, codeSnippet = '', difficulty = 'Mid') {
+
+  // Handle empty interview submissions
+  const answerText =
+    typeof candidateAnswer === 'string'
+      ? candidateAnswer.trim()
+      : '';
+
+  const submittedCode =
+    typeof codeSnippet === 'string'
+      ? codeSnippet.trim()
+      : '';
+
+      const safeQuestion =
+  typeof questionText === 'string'
+    ? questionText.trim()
+    : '';
+
+const normalizedDifficulty =
+  typeof difficulty === 'string' && difficulty.trim()
+    ? difficulty.trim()
+    : 'Mid';
+
+    if (!safeQuestion) {
+  return {
+    score: 0,
+    accuracy: 0,
+    clarity: 0,
+    depth: 0,
+    strengths: 'Invalid interview question.',
+    improvements: 'Provide a valid question.',
+    modelAnswer: 'A valid interview question is required.'
+  };
+}
+
+  if (!answerText && !submittedCode) {
+    return {
+      score: 0,
+      accuracy: 0,
+      clarity: 0,
+      depth: 0,
+      strengths: 'No answer was provided.',
+      improvements: 'Attempt the question and explain your understanding.',
+      modelAnswer: 'Provide a relevant explanation addressing the question.'
+    };
+  }
+
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (apiKey && apiKey.trim() !== '') {
     try {
       const prompt = `You are a strict but constructive senior engineering interviewer evaluating a candidate's answer.
-Difficulty level: ${difficulty}
-Question: "${questionText}"
-Candidate Answer: "${candidateAnswer}"
-${codeSnippet ? `Candidate Code: """${codeSnippet}"""` : ''}
+Difficulty level: ${normalizedDifficulty}
+Question: "${safeQuestion}"
+Candidate Answer: "${answerText}"
+${submittedCode ? `Candidate Code: """${submittedCode}"""` : ''}
 
 Evaluate the candidate and return strictly valid JSON matching this schema:
 {
@@ -656,10 +740,14 @@ Evaluate the candidate and return strictly valid JSON matching this schema:
   "modelAnswer": "<A concise, high-impact model answer>"
 }`;
 
-      const result = await callGemini(apiKey, prompt);
-      if (result && typeof result.score === 'number') {
-        return result;
-      }
+const result = await callGemini(apiKey, prompt);
+
+const normalizedResult = normalizeEvaluation(result);
+
+if (normalizedResult) {
+    return normalizedResult;
+}
+
     } catch (err) {
       console.warn('evaluateInterviewAnswer Gemini error, using heuristic engine:', err.message);
     }
@@ -669,16 +757,35 @@ Evaluate the candidate and return strictly valid JSON matching this schema:
   const text = (candidateAnswer || '').toLowerCase();
   const code = (codeSnippet || '').trim();
 
-  let matchedKeywords = 0;
-  if (expectedKeywords && expectedKeywords.length > 0) {
-    expectedKeywords.forEach(kw => {
-      if (text.includes(kw.toLowerCase())) matchedKeywords++;
-    });
-  }
 
-  const keywordRatio = expectedKeywords && expectedKeywords.length > 0
-    ? matchedKeywords / expectedKeywords.length
-    : 0.7;
+const normalizedKeywords = Array.isArray(expectedKeywords)
+  ? [...new Set(
+      expectedKeywords
+        .filter(kw => typeof kw === 'string')
+        .map(kw => kw.trim().replace(/\s+/g, ' ').toLowerCase())
+        .filter(Boolean)
+    )]
+  : [];
+
+let matchedKeywords = 0;
+
+normalizedKeywords.forEach(keyword => {
+  const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  const keywordPattern = new RegExp(
+    `(^|[^\\w])${escapedKeyword}(?=$|[^\\w])`,
+    'i'
+  );
+
+  if (keywordPattern.test(text)) {
+    matchedKeywords++;
+  }
+});
+
+const keywordRatio = normalizedKeywords.length > 0
+  ? matchedKeywords / normalizedKeywords.length
+  : 0.7;
+
 
   // Word count analysis
   const words = text.split(/\s+/).filter(Boolean).length;
@@ -736,8 +843,28 @@ function generateOverallFeedback(questions) {
     };
   }
 
-  const scores = questions.map(q => q.evaluation?.score || 0);
-  const avgScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+
+const scores = questions
+  .map(q => q?.evaluation?.score)
+  .filter(score =>
+    typeof score === 'number' &&
+    Number.isFinite(score) &&
+    score >= 0 &&
+    score <= 100
+  );
+
+if (scores.length === 0) {
+  return {
+    totalScore: 0,
+    overallFeedback: 'No valid interview evaluations available.',
+    topStrengths: [],
+    keyRecommendations: []
+  };
+}
+
+const avgScore = Math.round(
+  scores.reduce((total, score) => total + score, 0) / scores.length
+);
 
   const topStrengths = [];
   const keyRecommendations = [];
@@ -770,10 +897,12 @@ function generateOverallFeedback(questions) {
   };
 }
 
+
 module.exports = {
   generateInterviewQuestion,
   evaluateInterviewAnswer,
   generateOverallFeedback,
   ROLE_QUESTION_BANKS,
-  DEFAULT_QUESTIONS
+  DEFAULT_QUESTIONS,
+  normalizeEvaluation
 };
