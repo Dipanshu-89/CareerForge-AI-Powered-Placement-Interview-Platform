@@ -1,39 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import api from '../../api/axios';
-import {
-  Shield,
-  Users,
-  Briefcase,
-  FileText,
-  Bot,
-  Award,
-  TrendingUp,
-  Trash2,
-  CheckCircle2,
-  AlertTriangle,
-  Sparkles,
-  Mail,
-  Send,
-  Clock,
-  ExternalLink,
-  DollarSign
-} from 'lucide-react';
-
-const AdminDashboard = () => {
-  const [stats, setStats] = useState(null);
-  const [users, setUsers] = useState([]);
-  const [analyticsRequests, setAnalyticsRequests] = useState([]);
-  const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' | 'users' | 'requests'
-  const [loading, setLoading] = useState(true);
-  const [searchUser, setSearchUser] = useState('');
   const [actionMsg, setActionMsg] = useState('');
   const [sharingLoading, setSharingLoading] = useState(false);
 
   const fetchData = async () => {
     try {
       const [analyticsRes, usersRes, requestsRes] = await Promise.all([
-        api.get('/analytics'),
-        api.get('/users'),
+        api.get('/a   api.get('/users'),
         api.get('/analytics/requests').catch(() => ({ data: { requests: [] } }))
       ]);
 
@@ -55,25 +26,7 @@ const AdminDashboard = () => {
     try {
       await api.put(`/users/${userId}/role`, { role: newRole });
       setActionMsg(`User role updated to ${newRole}`);
-      setTimeout(() => setActionMsg(''), 3000);
-      fetchData();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleDeleteUser = async (userId) => {
-    if (!window.confirm('Are you sure you want to permanently delete this user?')) return;
-    try {
-      await api.delete(`/users/${userId}`);
-      setActionMsg('User removed successfully');
-      setTimeout(() => setActionMsg(''), 3000);
-      fetchData();
-    } catch (err) {
-      alert(err.response?.data?.message || 'Delete failed');
-    }
-  };
-
+     
   const handleShareAnalytics = async (requestId, requesterEmail) => {
     setSharingLoading(true);
     try {
@@ -90,23 +43,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const pendingRequestsCount = analyticsRequests.filter(r => r.status === 'pending').length;
-
-  const filteredUsers = users.filter(u =>
-    u.name?.toLowerCase().includes(searchUser.toLowerCase()) ||
-    u.email?.toLowerCase().includes(searchUser.toLowerCase())
-  );
-
-  if (loading) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+  const pendingRequdiv className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
       
       {/* Top Banner */}
       <div className="rounded-3xl bg-gradient-to-r from-slate-900 via-purple-950/40 to-slate-900 border border-slate-800 p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
@@ -181,33 +118,13 @@ const AdminDashboard = () => {
             activeTab === 'requests'
               ? 'bg-purple-600 text-white shadow-md'
               : 'bg-slate-900 text-slate-400 hover:text-white'
-          }`}
-        >
-          <span>📬 Analytics Requests</span>
-          {pendingRequestsCount > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-slate-950 font-extrabold text-[10px]">
-              {pendingRequestsCount} new
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setActiveTab('users')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'users'
-              ? 'bg-purple-600 text-white shadow-md'
-              : 'bg-slate-900 text-slate-400 hover:text-white'
-          }`}
-        >
-          Manage Users ({users.length})
         </button>
       </div>
 
       {/* Tab 1: Analytics & Market */}
       {activeTab === 'analytics' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          
-          {/* Top In-Demand Tech Skills */}
-          <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4">
+  <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4">
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-purple-400" />
               Most In-Demand Skills in Active Jobs
@@ -383,36 +300,11 @@ const AdminDashboard = () => {
                     <td className="p-3">
                       <select
                         value={u.role}
-                        onChange={(e) => handleRoleChange(u._id, e.target.value)}
-                        className="px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-white text-[11px] font-semibold outline-none"
-                      >
+                        onChan     className="px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-white text-[11px] font-semibold outline-none"
+                      
                         <option value="student">Student</option>
                         <option value="recruiter">Recruiter</option>
                         <option value="admin">Admin</option>
                       </select>
                     </td>
-                    <td className="p-3 text-slate-500">
-                      {new Date(u.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="p-3 text-right">
-                      <button
-                        onClick={() => handleDeleteUser(u._id)}
-                        className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded-lg"
-                        title="Delete User"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-    </div>
-  );
-};
-
-export default AdminDashboard;
+                    <td className="p-3 text-slate-5
