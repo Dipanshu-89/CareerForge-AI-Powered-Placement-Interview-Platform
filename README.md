@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="screenshots/CareerForge AI Placement Platform.png" 
+       alt="CareerForge Project Banner" 
+       width="100%">
+</p>
+
 # CareerForge – AI-Powered Placement & Interview Platform
 
 > **Modern Full-Stack Campus Placement & Technical Interview Platform**  
@@ -29,6 +35,19 @@
   - Market skill demand trends across active postings.
 
 ---
+### 🎯 Problem Statement
+
+Traditional placement processes often involve:
+- Manual resume screening.
+- Limited interview practice opportunities.
+- Lack of personalized feedback.
+- Inefficient application tracking.
+- Difficulty managing recruitment activities.
+
+### 💡 Our Solution
+
+CareerForge combines AI, automation, and real-time
+communication to simplify the entire placement process.
 
 ## 🚀 Quick Start Guide
 
