@@ -1,3 +1,8 @@
+<p align="center">
+  <img src="screenshots/CareerForge AI Placement Platform.png" 
+       alt="CareerForge Project Banner" 
+       width="100%">
+</p>
 # CareerForge – AI-Powered Placement & Interview Platform
 
 > **Modern Full-Stack Campus Placement & Technical Interview Platform**  
